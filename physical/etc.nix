@@ -1,0 +1,3 @@
+{
+  imports = [ ./etc.options.nix ];
+}
