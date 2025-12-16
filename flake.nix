@@ -4,6 +4,7 @@
     nixosModules = {
       physical = import ./physical;
       physical-options = import ./physical/default.options.nix;
+      deployment = import ./deployment;
     };
   };
 }

@@ -64,148 +64,150 @@
 
   cfg = config.physical;
 in {
-  options.physical = {
-    rack = mkOption {
-      type = types.nullOr (types.submodule ({ config, ... }: {
-        options = {
-          name = mkOption {
-            type = types.nullOr types.str;
-            default = null;
+  options = {
+    physical = {
+      rack = mkOption {
+        type = types.nullOr (types.submodule ({ config, ... }: {
+          options = {
+            name = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+            };
+            vlan = {
+              enable = mkOption {
+                type = types.bool;
+                default = true;
+              };
+              trust = mkOption {
+                type = types.bool;
+                default = false;
+              };
+              name = mkOption {
+                type = types.str;
+                default = "rack";
+              };
+              ipv4 = {
+                enable = mkOption {
+                  type = types.bool;
+                  default = true;
+                };
+                addressPrefix = coercedListOf types.ints.u8;
+                prefixLength = mkOption { type = types.ints.u8; };
+                address = mkOption {
+                  type = types.str;
+                  default = concatStringsSep "." (map toString (config.vlan.ipv4.addressPrefix ++ config.location));
+                  readOnly = true;
+                };
+              };
+              interface = mkOption { type = types.str; };
+            };
+            location = coercedListOf types.ints.u8;
+            size = mkOption {
+              type = types.int;
+              default = 1;
+            };
           };
-          vlan = {
-            enable = mkOption {
+        }));
+        default = null;
+      };
+      residence = {
+        address = mkOption {
+          type = types.str;
+          default = with cfg.residence; if length suffix > 0 && network != null then concatV4Octets cfg.networks.${network}.prefix suffix else null;
+        };
+        network = mkOption {
+          type = types.nullOr types.str;
+          default = let
+            res = attrNames (filterAttrs (_: v: v.residence) cfg.networks);
+          in if length res > 0 then head res else null;
+        };
+        suffix = mkOption {
+          type = types.nullOr partialV4Type;
+          default = [ ];
+        };
+      };
+      networks = mkOption {
+        type = types.attrsOf (types.submodule ({ name, config, ... }: {
+          options = {
+            residence = mkOption {
               type = types.bool;
-              default = true;
+              default = false;
+            };
+            interface = mkOption {
+              type = types.nullOr types.str;
+              default = null;
             };
             trust = mkOption {
               type = types.bool;
               default = false;
             };
-            name = mkOption {
-              type = types.str;
-              default = "rack";
+            prefix = partialIPV4 {};
+            suffix = partialIPV4 {
+              default = cfg.residence.suffix;
             };
-            ipv4 = {
+            prefixLength = mkOption {
+              type = types.ints.between 0 32;
+              default = 24;
+            };
+            netMask = mkOption {
+              type = types.str;
+              default = elemAt masks config.prefixLength;
+            };
+            address = mkOption {
+              type = types.either partialV4Type types.str;
+              default = with config; concatV4Octets prefix suffix;
+              apply = x: if isList x then concatV4Octets x else x;
+            };
+            CIDR = mkOption {
+              type = types.str;
+              default = "${config.address}/${toString config.prefixLength}";
+            };
+            ranges = let
+              networkConfig = config;
+            in mkOption {
+              type = types.attrsOf (types.submodule ({ config, ... }: {
+                options = {
+                  startSuffix = partialIPV4 {};
+                  endSuffix = partialIPV4{};
+                  startAddress = mkOption {
+                    type = types.str;
+                    default = concatV4Octets networkConfig.prefix config.startSuffix;
+                  };
+                  endAddress = mkOption {
+                    type = types.str;
+                    default = concatV4Octets networkConfig.prefix config.endSuffix;
+                  };
+                  rangeLength = mkOption {
+                    type = types.ints.between 0 32;
+                    default = networkConfig.prefixLength;
+                  };
+                  CIDR = mkOption {
+                    type = types.str;
+                    default = "${config.startAddress}/${toString config.rangeLength}";
+                  };
+                };
+              }));
+              default = {};
+            };
+            createInterface = mkOption {
+              type = types.bool;
+              default = true;
+            };
+            macvlan = {
               enable = mkOption {
                 type = types.bool;
-                default = true;
+                default = false;
               };
-              addressPrefix = coercedListOf types.ints.u8;
-              prefixLength = mkOption { type = types.ints.u8; };
-              address = mkOption {
+              name = mkOption {
                 type = types.str;
-                default = concatStringsSep "." (map toString (config.vlan.ipv4.addressPrefix ++ config.location));
-                readOnly = true;
+                default = name;
               };
+              interface = mkOption { type = types.str; };
             };
-            interface = mkOption { type = types.str; };
           };
-          location = coercedListOf types.ints.u8;
-          size = mkOption {
-            type = types.int;
-            default = 1;
-          };
-        };
-      }));
-      default = null;
-    };
-    residence = {
-      address = mkOption {
-        type = types.str;
-        default = with cfg.residence; if length suffix > 0 && network != null then concatV4Octets cfg.networks.${network}.prefix suffix else null;
+        }));
+        default = {};
       };
-      network = mkOption {
-        type = types.nullOr types.str;
-        default = let
-          res = attrNames (filterAttrs (_: v: v.residence) cfg.networks);
-        in if length res > 0 then head res else null;
-      };
-      suffix = mkOption {
-        type = types.nullOr partialV4Type;
-        default = [ ];
-      };
-    };
-    networks = mkOption {
-      type = types.attrsOf (types.submodule ({ name, config, ... }: {
-        options = {
-          residence = mkOption {
-            type = types.bool;
-            default = false;
-          };
-          interface = mkOption {
-            type = types.nullOr types.str;
-            default = null;
-          };
-          trust = mkOption {
-            type = types.bool;
-            default = false;
-          };
-          prefix = partialIPV4 {};
-          suffix = partialIPV4 {
-            default = cfg.residence.suffix;
-          };
-          prefixLength = mkOption {
-            type = types.ints.between 0 32;
-            default = 24;
-          };
-          netMask = mkOption {
-            type = types.str;
-            default = elemAt masks config.prefixLength;
-          };
-          address = mkOption {
-            type = types.either partialV4Type types.str;
-            default = with config; concatV4Octets prefix suffix;
-            apply = x: if isList x then concatV4Octets x else x;
-          };
-          CIDR = mkOption {
-            type = types.str;
-            default = "${config.address}/${toString config.prefixLength}";
-          };
-          ranges = let
-            networkConfig = config;
-          in mkOption {
-            type = types.attrsOf (types.submodule ({ config, ... }: {
-              options = {
-                startSuffix = partialIPV4 {};
-                endSuffix = partialIPV4{};
-                startAddress = mkOption {
-                  type = types.str;
-                  default = concatV4Octets networkConfig.prefix config.startSuffix;
-                };
-                endAddress = mkOption {
-                  type = types.str;
-                  default = concatV4Octets networkConfig.prefix config.endSuffix;
-                };
-                rangeLength = mkOption {
-                  type = types.ints.between 0 32;
-                  default = networkConfig.prefixLength;
-                };
-                CIDR = mkOption {
-                  type = types.str;
-                  default = "${config.startAddress}/${toString config.rangeLength}";
-                };
-              };
-            }));
-            default = {};
-          };
-          createInterface = mkOption {
-            type = types.bool;
-            default = true;
-          };
-          macvlan = {
-            enable = mkOption {
-              type = types.bool;
-              default = false;
-            };
-            name = mkOption {
-              type = types.str;
-              default = name;
-            };
-            interface = mkOption { type = types.str; };
-          };
-        };
-      }));
-      default = {};
     };
   };
 }
