@@ -71,6 +71,20 @@ in {
         type = types.nullOr types.str;
         default = null;
       };
+      buildHost = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+        };
+        address = mkOption {
+          type = types.nullOr types.str;
+          default = cfg.ssh.address;
+        };
+        user = mkOption {
+          type = types.nullOr types.str;
+          default = cfg.ssh.user;
+        };
+      };
       script = mkOption {
         type = types.lines;
         default = let
@@ -118,7 +132,7 @@ in {
               exec ${getExe pkgs.openssh} -p ${toString cfg'.port} ${cfg'.user}@${cfg'.address}
               ;;
           esac
-          NIX_SSHOPTS="''${additionalSshOpts:+$additionalSshOpts }-p $port''${identityFile:+ -i $identityFile}" ${getExe pkgs.nixos-rebuild} --flake ${cfg.flake}#${cfg.configurationName} --target-host $user@$host --build-host $user@$host --use-remote-sudo $action
+          NIX_SSHOPTS="''${additionalSshOpts:+$additionalSshOpts }-p $port''${identityFile:+ -i $identityFile}" ${getExe pkgs.nixos-rebuild} --flake ${cfg.flake}#${cfg.configurationName} --target-host $user@$host ${optionalString cfg'.buildHost.enable "${optionalString (cfg'.buildHost.user != null) "${cfg'.buildHost.user}@"}${cfg'.buildHost.address}"} --use-remote-sudo $action
         '').outPath;
       };
       options = mkOption {
