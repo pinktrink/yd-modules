@@ -127,12 +127,12 @@ in {
           user=''${userStr:-${cfg'.user}}
           port=''${portStr:-${toString cfg'.port}}
           action=''${positionalOpts[0]:-test}
-          case action in
+          case $action in
             ssh)
               exec ${getExe pkgs.openssh} -p ${toString cfg'.port} ${cfg'.user}@${cfg'.address}
               ;;
           esac
-          NIX_SSHOPTS="''${additionalSshOpts:+$additionalSshOpts }-p $port''${identityFile:+ -i $identityFile}" ${getExe pkgs.nixos-rebuild} --flake ${cfg.flake}#${cfg.configurationName} --target-host $user@$host ${optionalString cfg'.buildHost.enable "${optionalString (cfg'.buildHost.user != null) "${cfg'.buildHost.user}@"}${cfg'.buildHost.address}"} --use-remote-sudo $action
+          NIX_SSHOPTS="''${additionalSshOpts:+$additionalSshOpts }-p $port''${identityFile:+ -i $identityFile}" ${getExe pkgs.nixos-rebuild} --flake ${cfg.flake}#${cfg.configurationName} --target-host $user@$host ${optionalString cfg'.buildHost.enable "${optionalString (cfg'.buildHost.user != null) "${cfg'.buildHost.user}@"}${cfg'.buildHost.address}"} --use-remote-sudo $action --show-trace
         '').outPath;
       };
       options = mkOption {
